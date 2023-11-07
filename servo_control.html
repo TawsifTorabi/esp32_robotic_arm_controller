@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IoT Servo Controller</title>
+</head>
+<body>
+<button id="stopButton">Stop</button>
+
+<br>
+<br>
+<input type="url" name="" id="serverAddress" value="ws://192.168.1.101:80/remote" style="width: 300px;"/>
+<br>
+
+<!-- Display ping in milliseconds -->
+<p>Ping: <span id="pingValue">0</span></p>
+<br>
+
+<!-- Button to start WebSocket connection -->
+<label for="slider1" style="color: green;">Wrist Rotation: Servo1: <span id="sliderValue1">0</span></label></br>
+<input type="range" id="slider1" min="0" max="180" value="0" step="1"></br>
+
+<label for="slider2" style="color: green;">Grip: Servo2: <span id="sliderValue2">0</span></label></br>
+<input type="range" id="slider2" min="0" max="180" value="0" step="1"></br>
+
+<label for="slider3" style="color: green;">Wrist Tilt: Servo3: <span id="sliderValue3">0</span></label></br>
+<input type="range" id="slider3" min="0" max="180" value="0" step="1"></br>
+
+<label for="slider4" style="color: green;">Base Rotation: Servo4: <span id="sliderValue4">0</span></label></br>
+<input type="range" id="slider4" min="0" max="180" value="0" step="1"></br>
+
+<label for="slider5">Servo5: <span id="sliderValue5">0</span></label></br>
+<input type="range" id="slider5" min="0" max="180" value="0" step="1"></br>
+
+<label for="slider6">Servo6: <span id="sliderValue6">0</span></label></br>
+<input type="range" id="slider6" min="0" max="180" value="0" step="1"></br>
+
+<!-- Button to start WebSocket connection -->
+<button id="connectButton" onclick="openWebSocket();">Connect</button>
+<button id="disconnectButton" onclick="closeWebSocket();" style="display: none;">Disconnect</button>
+<span id="connectionStatus">Not Connected</span>
+<br>
+<br>
+
+
+<script>
+
+    let webSocket = null;
+    let pingStart;
+    let pingInterval;
+	let PollingRate = 90;
+	
+	// Get the slider element and the value span
+	const slider1 = document.getElementById("slider1");
+	const slider1Value = document.getElementById("sliderValue1");
+	
+	const slider2 = document.getElementById("slider2");
+	const slider2Value = document.getElementById("sliderValue2");
+	
+	const slider3 = document.getElementById("slider3");
+	const slider3Value = document.getElementById("sliderValue3");
+	
+	const slider4 = document.getElementById("slider4");
+	const slider4Value = document.getElementById("sliderValue4");
+	
+	const slider5 = document.getElementById("slider5");
+	const slider5Value = document.getElementById("sliderValue5");
+	
+	const slider6 = document.getElementById("slider6");
+	const slider6Value = document.getElementById("sliderValue6");
+	
+	
+	let servoValue1;
+	let servoValue2;
+	let servoValue3;
+	let servoValue4;
+	let servoValue5;
+	let servoValue6;
+
+	// Add an event listener to update the displayed value when the slider changes
+	slider1.addEventListener("input", function() {
+		servoValue1 = slider1.value;
+		slider1Value.textContent = slider1.value;
+		sendCommand("servo:1,value:" + servoValue1);
+	});
+
+	slider2.addEventListener("input", function() {
+		servoValue2 = slider2.value;
+		slider2Value.textContent = slider2.value;
+		sendCommand("servo:2,value:" + servoValue2);
+	});
+	
+	slider3.addEventListener("input", function() {
+		servoValue3 = slider3.value;
+		slider3Value.textContent = slider3.value;
+		sendCommand("servo:3,value:" + servoValue3);
+	});
+	
+	slider4.addEventListener("input", function() {
+		servoValue4 = slider4.value;
+		slider4Value.textContent = slider4.value;
+		sendCommand("servo:4,value:" + servoValue4);
+	});
+
+	slider5.addEventListener("input", function() {
+		servoValue5 = slider5.value;
+		slider5Value.textContent = slider5.value;
+		sendCommand("servo:5,value:" + servoValue5);
+	});
+	
+	slider6.addEventListener("input", function() {
+		servoValue6 = slider6.value;
+		slider6Value.textContent = slider6.value;
+		sendCommand("servo:6,value:" + servoValue6);
+	});
+	
+	
+	
+    // Function to send a command to the RC car
+    async function sendCommand(command) {
+        if (webSocket) {
+            if (webSocket.readyState === WebSocket.CLOSED || webSocket.readyState === WebSocket.CLOSING) {
+                // If the WebSocket is closed or closing, do not reopen it here
+                console.log("WebSocket is closed or closing. Cannot send command.");
+                openWebSocket();
+            }
+            if (webSocket.readyState === WebSocket.OPEN) {
+                webSocket.send(command);
+				console.log(command);
+            }
+        } else {
+            console.error("WebSocket is not connected.");
+        }
+    }
+
+    // Function to open a WebSocket connection
+    async function openWebSocket() {
+        const serverAddress = document.getElementById('serverAddress').value;
+        webSocket = new WebSocket(serverAddress);
+        webSocket.onopen = function () {
+            console.log("WebSocket connected to:", serverAddress);
+            document.getElementById("connectionStatus").textContent = "Connected";
+            document.getElementById("connectButton").style.display = "none";
+            document.getElementById("disconnectButton").style.display = "inline-block";
+            pingInterval = setInterval(() => {
+                pingStart = Date.now();
+                //webSocket.send("ping");
+            }, 3000); // Send ping every 1 second
+        };
+        webSocket.onclose = function () {
+            console.log("WebSocket closed.");
+            document.getElementById("connectionStatus").textContent = "Not Connected";
+            document.getElementById("connectButton").style.display = "inline-block";
+            document.getElementById("disconnectButton").style.display = "none";
+            clearInterval(pingInterval);
+        };
+        webSocket.onerror = function (error) {
+            console.error("WebSocket error:", error);
+        };
+        webSocket.onmessage = function (event) {
+            if (event.data === "pong") {
+                const pingValue = Date.now() - pingStart;
+                document.getElementById("pingValue").textContent = pingValue + " ms";
+            }
+        };
+    }
+
+    function closeWebSocket() {
+        if (webSocket) {
+            webSocket.close();
+            clearInterval(pingInterval);
+        }
+    }
+	
+
+    // Open the WebSocket connection initially
+    openWebSocket();
+</script>
+</body>
+</html>
